@@ -1,0 +1,104 @@
+name: Build CT3003 variants
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_device:
+        description: 'Target device profile'
+        required: true
+        default: 'cetron_ct3003'
+        type: choice
+        options:
+          - cetron_ct3003
+          - cetron_ct3003-mod
+      package_enable:
+        description: 'Space-separated package names to enable'
+        required: false
+        default: ''
+      package_disable:
+        description: 'Space-separated package names to disable'
+        required: false
+        default: ''
+      config_fragment:
+        description: 'Raw .config lines appended after the base config'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Restore dl cache
+        uses: actions/cache@v4
+        with:
+          path: dl
+          key: ${{ runner.os }}-lede-ct3003-dl-${{ hashFiles('feeds.conf.default') }}
+          restore-keys: |
+            ${{ runner.os }}-lede-ct3003-dl-
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ${{ runner.os }}-lede-ct3003-ccache-${{ github.ref_name }}-${{ github.event.inputs.target_device }}
+          restore-keys: |
+            ${{ runner.os }}-lede-ct3003-ccache-
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gcc-multilib \
+            g++-multilib gettext genisoimage git gperf haveged help2man intltool libc6-dev-i386 \
+            libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+            libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool \
+            llvm lrzsz libnsl-dev ninja-build p7zip p7zip-full patch pkgconf python3 \
+            python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools \
+            subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+
+      - name: Prepare feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Seed CT3003 config
+        run: |
+          cat > .config <<'EOF'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          # CONFIG_TARGET_MULTI_PROFILE is not set
+          EOF
+          bash scripts/ci/apply-config-fragment.sh \
+            --enable-target "${{ github.event.inputs.target_device }}" \
+            --package-enable "${{ github.event.inputs.package_enable }}" \
+            --package-disable "${{ github.event.inputs.package_disable }}" \
+            --fragment "${{ github.event.inputs.config_fragment }}"
+          make defconfig
+
+      - name: Build firmware
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: |
+          make -j"$(nproc)"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.target_device }}-firmware
+          path: |
+            bin/targets/mediatek/filogic/*ct3003*factory.bin
+            bin/targets/mediatek/filogic/*ct3003*sysupgrade.bin
+            bin/targets/mediatek/filogic/*ct3003*.manifest
+            bin/targets/mediatek/filogic/sha256sums
+            bin/targets/mediatek/filogic/profiles.json
+            bin/targets/mediatek/filogic/config.buildinfo
+            bin/targets/mediatek/filogic/version.buildinfo
+            .config
+          if-no-files-found: error

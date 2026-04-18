@@ -110,6 +110,18 @@ make V=s -j$(nproc)
 
 编译完成后输出路径：bin/targets
 
+### GitHub Actions
+
+仓库提供了一个手动触发的 GitHub Actions 工作流 `.github/workflows/build-ct3003.yml`，可用于编译 `cetron_ct3003` 或 `cetron_ct3003-mod`。
+
+- 在 Actions 页面触发 **Build CT3003 variants**。
+- `target_device`：选择 `cetron_ct3003` 或 `cetron_ct3003-mod`。
+- `package_enable`：填写要强制启用的包名，多个包用空格分隔。
+- `package_disable`：填写要禁用的包名，多个包用空格分隔。
+- `config_fragment`：追加原始 `.config` 片段，适合高级覆盖。
+- 工作流会生成最小 `mediatek/filogic` 配置，锁定到所选 CT3003 机型，执行 `make defconfig` 后开始编译。
+- 构建完成后会上传对应固件、manifest、`.config` 和 buildinfo 到 Actions artifacts。
+
 ### 使用 WSL/WSL2 进行编译
 
 由于 WSL 的 PATH 中包含带有空格的 Windows 路径，有可能会导致编译失败，请在 `make` 前面加上：
