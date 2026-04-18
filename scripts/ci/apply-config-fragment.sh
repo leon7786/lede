@@ -61,7 +61,7 @@ forced = [
     'CONFIG_TARGET_mediatek_filogic=y',
 ]
 if enable_target:
-    forced.append(f'CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_{enable_target}=y')
+    forced.append(f'CONFIG_TARGET_mediatek_filogic_DEVICE_{enable_target}=y')
 
 for item in forced:
     if item not in result:

@@ -74,6 +74,7 @@ jobs:
           CONFIG_TARGET_mediatek=y
           CONFIG_TARGET_mediatek_filogic=y
           # CONFIG_TARGET_MULTI_PROFILE is not set
+          CONFIG_TARGET_mediatek_filogic_DEVICE_${{ github.event.inputs.target_device }}=y
           EOF
           bash scripts/ci/apply-config-fragment.sh \
             --enable-target "${{ github.event.inputs.target_device }}" \
@@ -81,6 +82,7 @@ jobs:
             --package-disable "${{ github.event.inputs.package_disable }}" \
             --fragment "${{ github.event.inputs.config_fragment }}"
           make defconfig
+          grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${{ github.event.inputs.target_device }}=y$" .config
 
       - name: Build firmware
         env:
